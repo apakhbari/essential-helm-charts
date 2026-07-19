@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: kube-system
+data:
+  fluent-bit.conf: |
+    [SERVICE]
+        Flush         5
+        Log_Level     ${LOG_LEVEL}
+        Parsers_File  parsers.conf
+
+    @INCLUDE input-containers.conf
+    @INCLUDE filters.conf
+    @INCLUDE output-gelf.conf
+
+  input-containers.conf: |
+    [INPUT]
+        Name              tail
+        Path              /var/log/containers/*.log
+        Tag_Regex         (?<filename>[^/]+)$
+        Tag               kube.<filename>
+        Parser            docker
+        DB                /var/fluent-bit/state/tail-containers.db
+        Skip_Long_Lines   Off
+        Buffer_Chunk_Size 512k
+        Buffer_Max_Size   512k
+        Mem_Buf_Limit     50MB
+        Refresh_Interval  10
+        Rotate_Wait       30
+
+  filters.conf: |
+    [FILTER]
+        Name               kubernetes
+        Match              kube.*
+        Kube_URL           https://kubernetes.default.svc:443
+        Kube_CA_File       /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File    /var/run/secrets/kubernetes.io/serviceaccount/token
+        Merge_Log          On
+        Keep_Log           On
+        K8S-Logging.Parser On
+        Labels             On
+        Annotations        On
+        Kube_Tag_Prefix    kube.
+        Regex_Parser       kube-custom-tag-parser
+
+    [FILTER]
+        Name   grep
+        Match  kube.*
+        Exclude $kubernetes['namespace_name'] ^(metallb-system|argocd|kube-system|rook-ceph|istio-system|monitoring)$
+
+    [FILTER]
+        Name  modify
+        Match *
+        Add   env_name ${CLUSTER_NAME}
+
+    [FILTER]
+        Name   lua
+        Match  kube.*
+        script /fluent-bit/scripts/combine_fields.lua
+        call   add_identifier
+  output-gelf.conf: |
+    [OUTPUT]
+        Name   gelf
+        Match  *
+        Host   ${GRAYLOG_HOST}
+        Port   ${GRAYLOG_PORT}
+        Mode   ${GRAYLOG_MODE}
+        Gelf_Short_Message_Key log
+
+  parsers.conf: |
+    [PARSER]
+        Name         docker
+        Format       json
+        Time_Key     time
+        Time_Format  %Y-%m-%dT%H:%M:%S.%L%z
+        Time_Keep    On
+
+    [PARSER]
+        Name         kube-custom-tag-parser
+        Format       regex
+        Regex        ^(?<pod_name>[^_]+)_(?<namespace_name>[^_]+)_(?<container_name>.+)-(?<docker_id>[a-z0-9]{64})\.log$

@@ -1,0 +1,17 @@
+global:
+  hub: registry.eniac-tech.com/istio-system
+  imagePullSecrets:
+    - internal-registry-secret
+
+meshConfig:
+  # Crucial for Canal troubleshooting: standardizes traffic discovery metrics
+  enablePrometheusMerge: true 
+  accessLogFile: /dev/stdout
+
+pilot:
+  image: pilot
+  autoscaleEnabled: false # Keeps it constrained cleanly on your 3 master nodes
+
+sidecarInjectorWebhook:
+  objectSelector:
+    enabled: true

@@ -1,0 +1,43 @@
+global:
+  # Sets the image registry path for the primary ArgoCD image block
+  image:
+    repository: registry.eniac-tech.com/argoproj/argocd
+    # tag: "vX.Y.Z" # Matches the version pulled in your text file
+  
+  imagePullSecrets:
+    - name: internal-registry-secret
+
+# 1. Controller overrides
+controller:
+  image:
+    repository: registry.eniac-tech.com/argoproj/argocd
+
+# 2. API Server & Web UI overrides
+server:
+  image:
+    repository: registry.eniac-tech.com/argoproj/argocd
+  
+  # Crucial RKE2/Ingress setup adjustment: Prevents endless loops if SSL terminates at NGINX
+  configs:
+    params:
+      server.insecure: "true"
+
+# 3. Repo Server overrides
+repoServer:
+  image:
+    repository: registry.eniac-tech.com/argoproj/argocd
+
+# 4. ApplicationSet Controller overrides
+applicationSet:
+  image:
+    repository: registry.eniac-tech.com/argoproj/argocd
+
+# 5. Internal Redis Cache sub-chart overrides
+redis:
+  image:
+    repository: registry.eniac-tech.com/argoproj/redis
+
+# 6. Dex SSO sub-chart overrides
+dex:
+  image:
+    repository: registry.eniac-tech.com/argoproj/dex

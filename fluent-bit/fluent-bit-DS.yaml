@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: fluent-bit
+  namespace: kube-system
+  labels:
+    k8s-app: fluent-bit
+spec:
+  selector:
+    matchLabels:
+      k8s-app: fluent-bit
+  template:
+    metadata:
+      labels:
+        k8s-app: fluent-bit
+    spec:
+      serviceAccountName: fluent-bit
+      tolerations:
+      - operator: Exists
+      containers:
+      - name: fluent-bit
+        image: fluent/fluent-bit:3.2.10
+        env:
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: log_level
+        - name: CLUSTER_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: cluster_name
+        - name: CLUSTER_IDENTIFIER
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: cluster_identifier
+        - name: GRAYLOG_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: graylog_host
+        - name: GRAYLOG_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: graylog_port
+        - name: GRAYLOG_MODE
+          valueFrom:
+            configMapKeyRef:
+              name: fluent-bit-variables
+              key: graylog_mode
+        resources:
+          limits:
+            memory: 200Mi
+          requests:
+            cpu: 50m
+            memory: 100Mi
+        volumeMounts:
+        - name: varlog
+          mountPath: /var/log
+        - name: config
+          mountPath: /fluent-bit/etc/
+        - name: fluentbit-storage
+          mountPath: /var/fluent-bit/storage
+        - name: lua-scripts
+          mountPath: /fluent-bit/scripts/
+        - name: docker-logs
+          mountPath: /var/lib/docker/containers
+          readOnly: true
+        - name: fluentbit-state
+          mountPath: /var/fluent-bit/state
+
+      volumes:
+      - name: varlog
+        hostPath:
+          path: /var/log
+      - name: config
+        configMap:
+          name: fluent-bit-config
+      - name: fluentbit-storage
+        hostPath:
+          path: /var/lib/fluent-bit
+          type: DirectoryOrCreate
+      - name: lua-scripts
+        configMap:
+          name: fluent-bit-lua-scripts
+          items:
+            - key: combine_fields.lua
+              path: combine_fields.lua
+      - name: docker-logs
+        hostPath:
+          path: /var/lib/docker/containers
+          type: Directory
+      - name: fluentbit-state
+        hostPath:
+          path: /var/lib/fluent-bit/state
+          type: DirectoryOrCreate

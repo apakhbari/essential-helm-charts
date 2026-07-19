@@ -1,0 +1,29 @@
+image:
+  repository: registry.eniac-tech.com/istio-system/kiali
+  tag: v2.27.0 # Match your synced version
+  imagePullSecrets:
+    - internal-registry-secret
+
+external_services:
+  prometheus:
+    # Points Kiali directly to your kube-prometheus-stack service instance
+    url: "http://prometheus-stack-kube-prom-prometheus.monitoring.svc.cluster.local:9090"
+  istio:
+    root_namespace: "istio-system"
+
+auth:
+  strategy: "anonymous" # Ideal for closed, highly secure air-gapped testing setups
+
+external_services:
+  prometheus:
+    url: "http://prometheus-stack-kube-prom-prometheus.monitoring.svc.cluster.local:9090"
+
+  grafana:
+    enabled: true
+    internal_url: "http://prometheus-stack-grafana.monitoring.svc.cluster.local:80"
+    external_url: "http://<Your-Master-IP>:32002" 
+    
+    # --- UPDATE THIS AUTH BLOCK ---
+    auth:
+      type: "basic"
+      use_kiali_secret: true # Tells Kiali to look for a secret named "kiali-grafana-auth"

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-lua-scripts
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: fluent-bit
+data:
+  combine_fields.lua: |
+    function add_identifier(tag, timestamp, record)
+        -- Get cluster identifier from environment variable
+        local cluster_id = os.getenv("CLUSTER_IDENTIFIER") or "unknown"
+        
+        -- Safely get namespace, fall back to "unknown" if kubernetes filter failed
+        local k8s = record["kubernetes"]
+        local ns = "unknown"
+        if k8s and k8s["namespace_name"] then
+            ns = k8s["namespace_name"]
+        elseif record["kubernetes.namespace_name"] then
+            ns = record["kubernetes.namespace_name"]
+        end
+
+        record["identifier"] = cluster_id .. ":" .. ns
+        return 1, timestamp, record
+    end

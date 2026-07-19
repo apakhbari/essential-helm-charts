@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-variables
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: fluent-bit
+data:
+  # Fluent Bit Service Configuration
+  log_level: "info"
+  
+  # Cluster Identification
+  cluster_name: "k8s_prod_50"
+  cluster_identifier: "k8s_prod_50"
+  
+  # Graylog Output Configuration
+  graylog_host: "10.10.21.151"
+  graylog_port: "31220"
+  graylog_mode: "tcp"
