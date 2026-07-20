@@ -1,5 +1,5 @@
-NAMESPACE=rabbitmq-billing          # new namespace, different from your first instance
-RELEASE=rabbitmq-billing
+NAMESPACE=rabbitmq-topup          # new namespace, different from your first instance
+RELEASE=rabbitmq-topup
 REGISTRY=registry.eniac-tech.com
 RABBITMQ_TAG=3.13.7-management      # pick current stable at pull time
 EXPORTER_TAG=v1.0.0-RC24            # check kbudde/rabbitmq_exporter tags for latest

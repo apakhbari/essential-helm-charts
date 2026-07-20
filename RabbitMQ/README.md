@@ -15,8 +15,8 @@ If you'd rather use the official upstream path going forward, the RabbitMQ team'
 ## 0. Decide naming (adjust to your convention)
 
 ```
-NAMESPACE=rabbitmq-billing          # new namespace, different from your first instance
-RELEASE=rabbitmq-billing
+NAMESPACE=rabbitmq-topup          # new namespace, different from your first instance
+RELEASE=rabbitmq-topup
 REGISTRY=registry.eniac-tech.com
 RABBITMQ_TAG=3.13.7-management      # pick current stable at pull time
 EXPORTER_TAG=v1.0.0-RC24            # check kbudde/rabbitmq_exporter tags for latest
@@ -47,7 +47,7 @@ Transfer nothing else — that's the entire image list for this design (no bitna
 Create this structure on the internet-connected machine (or directly on the airgapped bastion, it's plain YAML):
 
 ```
-rabbitmq-billing/
+rabbitmq-topup/
 ├── Chart.yaml
 ├── values.yaml
 └── templates/
@@ -62,7 +62,7 @@ rabbitmq-billing/
 **Chart.yaml**
 ```yaml
 apiVersion: v2
-name: rabbitmq-billing
+name: rabbitmq-topup
 description: Standalone RabbitMQ with management UI and Prometheus exporter
 version: 0.1.0
 appVersion: "3.13.7"
@@ -311,16 +311,16 @@ Note: I kept the exporter (port 9419, same as your existing one) as the primary 
 
 ## 3. Transfer & load on the air-gapped cluster
 
-Copy the `rabbitmq-billing/` folder to your bastion via your usual offline transfer method, then:
+Copy the `rabbitmq-topup/` folder to your bastion via your usual offline transfer method, then:
 
 ```bash
-kubectl create namespace rabbitmq-billing
+kubectl create namespace rabbitmq-topup
 
 kubectl create secret docker-registry eniac-registry \
   --docker-server=registry.eniac-tech.com \
   --docker-username=<user> \
   --docker-password=<pass> \
-  -n rabbitmq-billing
+  -n rabbitmq-topup
 ```
 
 Edit `values.yaml` (password, erlang cookie, storageClassName, NodePort numbers if they conflict with anything already in use — check with `kubectl get svc -A -o wide | grep -E '30672|30673|30674'` first).
@@ -330,13 +330,13 @@ Edit `values.yaml` (password, erlang cookie, storageClassName, NodePort numbers 
 ## 4. Install
 
 ```bash
-helm install rabbitmq-billing ./rabbitmq-billing -n rabbitmq-billing
+helm install rabbitmq-topup ./rabbitmq-topup -n rabbitmq-topup
 ```
 
 Verify:
 ```bash
-kubectl get pods,svc,pvc -n rabbitmq-billing
-kubectl get servicemonitor -n rabbitmq-billing
+kubectl get pods,svc,pvc -n rabbitmq-topup
+kubectl get servicemonitor -n rabbitmq-topup
 ```
 
 ---
@@ -350,14 +350,14 @@ kubectl get prometheus rancher-monitoring-prometheus -n cattle-monitoring-system
   -o jsonpath='{.spec.serviceMonitorSelector}{"\n"}{.spec.serviceMonitorNamespaceSelector}{"\n"}'
 ```
 
-- If both come back as `{}` (empty), it watches **all** ServiceMonitors in **all** namespaces regardless of labels — your new one in `rabbitmq-billing` will be picked up automatically.
+- If both come back as `{}` (empty), it watches **all** ServiceMonitors in **all** namespaces regardless of labels — your new one in `rabbitmq-topup` will be picked up automatically.
 - If either has `matchLabels`, add those same labels under `serviceMonitor.additionalLabels` in `values.yaml` and `helm upgrade`.
 
 Then confirm the target is actually being scraped:
 ```bash
 kubectl port-forward -n cattle-monitoring-system svc/rancher-monitoring-prometheus 9090:9090
 ```
-and check `http://localhost:9090/targets` for a job matching `rabbitmq-billing`.
+and check `http://localhost:9090/targets` for a job matching `rabbitmq-topup`.
 
 ---
 
