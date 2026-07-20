@@ -1,0 +1,42 @@
+image:
+  repository: registry.eniac-tech.com/library/rabbitmq
+  tag: 3.13.7-management
+  pullPolicy: IfNotPresent
+
+exporterImage:
+  repository: registry.eniac-tech.com/kbudde/rabbitmq_exporter
+  tag: v1.0.0-RC24
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: eniac-registry
+
+auth:
+  username: admin
+  password: "CHANGE-ME-STRONG-PASSWORD"
+  erlangCookie: "CHANGE-ME-RANDOM-COOKIE-STRING"
+
+persistence:
+  enabled: true
+  size: 8Gi
+  storageClassName: ""     # set to your cluster's StorageClass, or "" for default
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+service:
+  nodePort:
+    amqp: 30672
+    management: 30673
+  metricsNodePort: 30674   # permanent, fixed NodePort for the exporter's /metrics
+
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  # only needed if your Prometheus CR restricts serviceMonitorSelector by label
+  additionalLabels: {}
