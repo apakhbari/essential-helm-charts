@@ -15,9 +15,16 @@ spec:
     spec:
       imagePullSecrets:
         {{- toYaml .Values.imagePullSecrets | nindent 8 }}
+      securityContext:
+        fsGroup: 999
+        fsGroupChangePolicy: "OnRootMismatch"
       containers:
         - name: rabbitmq
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          securityContext:
+            runAsUser: 999
+            runAsGroup: 999
+            allowPrivilegeEscalation: true
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
             - name: RABBITMQ_DEFAULT_USER

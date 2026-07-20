@@ -19,7 +19,7 @@ auth:
 persistence:
   enabled: true
   size: 4Gi
-  storageClassName: ""     # set to your cluster's StorageClass, or "" for default
+  storageClassName: "nfs-client-rabbit"     # set to your cluster's StorageClass, or "" for default
 
 resources:
   requests:
