@@ -1,0 +1,186 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: system:metrics-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes/metrics
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - nodes
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: system:metrics-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:metrics-server
+subjects:
+- kind: ServiceAccount
+  name: metrics-server
+  namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-server
+  namespace: kube-system
+  labels:
+    k8s-app: metrics-server
+spec:
+  ports:
+  - port: 443
+    protocol: TCP
+    targetPort: 10250
+  selector:
+    k8s-app: metrics-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-server
+  namespace: kube-system
+  labels:
+    k8s-app: metrics-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: metrics-server
+  template:
+    metadata:
+      labels:
+        k8s-app: metrics-server
+    spec:
+      # ✅ CRITICAL: Use hostNetwork to reach kubelet
+      hostNetwork: true
+      
+      # Image pull secret for your internal registry
+      imagePullSecrets:
+      - name: internal-registry-secret
+      
+      # Service account
+      serviceAccountName: metrics-server
+      
+      # Run on master nodes if needed
+      nodeSelector:
+        kubernetes.io/os: linux
+      
+      # Tolerations to run on master nodes
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+      
+      containers:
+      - name: metrics-server
+        image: registry.eniac-tech.com/metrics-server/metrics-server:v0.7.2
+        imagePullPolicy: IfNotPresent
+        
+        # ✅ Use different port to avoid conflict with kubelet (kubelet uses 10250)
+        args:
+        - --cert-dir=/tmp
+        - --secure-port=10255
+        - --kubelet-insecure-tls
+        - --kubelet-preferred-address-types=InternalIP,Hostname
+        - --kubelet-use-node-status-port
+        
+        ports:
+        - containerPort: 10255
+          name: https
+          protocol: TCP
+          hostPort: 10255
+        
+        # Readiness probe (use new port)
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 10255
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 5
+        
+        # Liveness probe (use new port)
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: 10255
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 5
+        
+        # Resource limits
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+        
+        volumeMounts:
+        - name: tmp-dir
+          mountPath: /tmp
+      
+      volumes:
+      - name: tmp-dir
+        emptyDir: {}
+---
+apiVersion: apiregistration.k8s.io/v1
+kind: APIService
+metadata:
+  name: v1beta1.metrics.k8s.io
+spec:
+  service:
+    name: metrics-server
+    namespace: kube-system
+  group: metrics.k8s.io
+  version: v1beta1
+  insecureSkipTLSVerify: true
+  groupPriorityMinimum: 100
+  versionPriority: 100
